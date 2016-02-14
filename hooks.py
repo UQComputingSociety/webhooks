@@ -28,6 +28,9 @@ def supervisor_restart(service):
                 password=os.environ.get("SUPERVISOR_PASS","123"),
             )
         )
+    # if error in stop, doesn't try and start - short circuited booleans
+    return server.stopProcess(service) and server.startProcess(name)
+
 
 def git_pull_in_dir(service):
     """
@@ -37,7 +40,7 @@ def git_pull_in_dir(service):
     previous_cwd = os.getcwd()
     os.chdir(path)
     out = sp.check_output(["git", "pull"], timeout=120)
-    out ++ "\n"
+    out += "\n"
     os.chdir(previous_cwd)
     return out
 
