@@ -58,5 +58,5 @@ def wrap(service):
     return fn 
 
 for service in services:
-    app.route('/'+service)(wrap(service))
+    app.route('/'+service, methods=["GET", "POST"])(wrap(service))
 
