@@ -39,7 +39,11 @@ def git_pull_in_dir(service):
     """
     previous_cwd = os.getcwd()
     os.chdir("/srv/" + service)
-    out = sp.check_output(["git", "pull"], timeout=120).decode('utf-8')
+    try:
+        out = sp.check_output(["git", "pull"], timeout=120).decode('utf-8')
+    except sp.CalledProcessError as e:
+        out = e.output.decode('utf-8')
+        out += "\nErrored out with code " + str(e.returncode) + "."
     out += "\n"
     os.chdir(previous_cwd)
     return out
