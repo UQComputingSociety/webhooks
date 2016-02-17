@@ -23,15 +23,15 @@ __all__ = [
 ]
 
 
-def slack_post(service, git_pull_result, sueprvisor_result):
+def slack_post(service, git_pull_result, supervisor_result):
     def format():
         if git_pull_result[-1] == 0:
             gitmsg = "Git pull successful"
         else:
             gitmsg = "Git pull had non-zero exit status"
-        if len(sueprvisor_result) == 3:
-            supmsg = "Service status: " + supervisor_restart[-1]["statename"]
-        elif len(sueprvisor_result) == 2:
+        if len(supervisor_result) == 3:
+            supmsg = "Service status: " + supervisor_result[-1]["statename"]
+        elif len(supervisor_result) == 2:
             supmsg = "Error starting process"
         else:
             supmsg = "Error stopping process"
