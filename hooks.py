@@ -27,6 +27,8 @@ def slack_post(service, git_pull_result, supervisor_result):
     def format():
         if git_pull_result[-1] == 0:
             gitmsg = "Git pull successful"
+            if "Already up-to-date" in git_pull_result[0]:
+                gitmsg += ". No new commits"
         else:
             gitmsg = "Git pull had non-zero exit status"
         if len(supervisor_result) == 3:
