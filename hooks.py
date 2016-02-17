@@ -43,7 +43,8 @@ def slack_post(service, git_pull_result, supervisor_result):
         requests.post(slack_hooks, json.dumps({
                 "username": "hookbot",
                 "icon_emoji": ":fc:",
-                "text": format()
+                "text": format(),
+                "channel": "#projects",
             }))
 
 
@@ -112,6 +113,6 @@ def hookbot_hook():
                 "username": "hookbot",
                 "icon_emoji": ":fc:",
                 "text": msg,
-                "channel": "#projects"
+                "channel": "#projects",
             }))
     supervisor_restart("hooks")
