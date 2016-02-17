@@ -12,7 +12,6 @@ services = [
     "slackinv",
     "hubot",
     "website",
-    "hooks",
 ]
 
 with open("template.html") as f:
@@ -98,3 +97,20 @@ def wrap(service):
 for service in services:
     app.route('/'+service, methods=["GET", "POST"])(wrap(service))
 
+
+@app.route("/hooks", methods=["GET", "POST"])
+def hookbot_hook():
+    git = git_pull_in_dir("hooks")
+
+    msg = "Someone triggered my reset switch! "
+    msg += "There was a git pull with status code {}.".format(git[1])
+    msg += " Can someone please restart me now? https://cesi.uqcs.org.au. Ask @trm for a signin."
+
+    slack_hooks = os.environ.get("SLACK_HOOK_URL")
+    if slack_hooks:
+        requests.post(slack_hooks, json.dumps({
+                "username": "hookbot",
+                "icon_emoji": ":fc:",
+                "text": msg
+            }))
+    supervisor_restart("hooks")
