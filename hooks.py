@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask
 import os
 import subprocess as sp
 import xmlrpc.client
@@ -23,9 +23,20 @@ __all__ = [
 ]
 
 
-def slack_post(git_pull_result, sueprvisor_result):
+def slack_post(service, git_pull_result, sueprvisor_result):
     def format():
-        return "A thing happend, I don't know what."
+        if git_pull_result[-1] == 0:
+            gitmsg = "Git pull successful"
+        else:
+            gitmsg = "Git pull had non-zero exit status"
+        if len(sueprvisor_result) == 3:
+            supmsg = "Service status: " + supervisor_restart[-1]["statename"]
+        elif len(sueprvisor_result) == 2:
+            supmsg = "Error starting process"
+        else:
+            supmsg = "Error stopping process"
+
+        return "Hook for {} triggered. {}. {}.".format(service, gitmsg, supmsg)
     slack_hooks = os.environ.get("SLACK_HOOK_URL")
     if slack_hooks:
         requests.post(slack_hooks, json.dumps({
@@ -38,12 +49,17 @@ def slack_post(git_pull_result, sueprvisor_result):
 def supervisor_restart(service):
     server = xmlrpc.client.ServerProxy(
         'http://{username}:{password}@localhost:9001/RPC2'.format(
-                username=os.environ.get("SUPERVISOR_USER","user"),
-                password=os.environ.get("SUPERVISOR_PASS","123"),
+                username=os.environ.get("SUPERVISOR_USER", "user"),
+                password=os.environ.get("SUPERVISOR_PASS", "123"),
             )
         )
     # if error in stop, doesn't try and start - short circuited booleans
-    return server.supervisor.stopProcess(service) and server.supervisor.startProcess(service) and server.supervisor.getProcessInfo(service)
+    res = server.supervisor.stopProcess(service),
+    if res[-1]:
+        res += server.supervisor.startProcess(service),
+    if res[-1]:
+        res += server.supervisor.getProcessInfo(service),
+    return res
 
 
 def git_pull_in_dir(service):
@@ -66,13 +82,13 @@ def git_pull_in_dir(service):
 
 def wrap(service):
     def fn():
-        slack_post(1, 1)
         git = git_pull_in_dir(service)
         sup = supervisor_restart(service)
         msg = template.format(
                 git[0],
                 sup[-1],
             )
+        slack_post(service, git, sup)
         return msg
     fn.__name__ = service + "_update"
     return fn
