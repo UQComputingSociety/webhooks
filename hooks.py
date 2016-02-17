@@ -104,13 +104,14 @@ def hookbot_hook():
 
     msg = "Someone triggered my reset switch! "
     msg += "There was a git pull with status code {}.".format(git[1])
-    msg += " Can someone please restart me now? https://cesi.uqcs.org.au. Ask @trm for a signin."
+    msg += " Can someone please restart me now? https://cesi.uqcs.org.au. @trm @lsenjov @wisebaldone"
 
     slack_hooks = os.environ.get("SLACK_HOOK_URL")
     if slack_hooks:
         requests.post(slack_hooks, json.dumps({
                 "username": "hookbot",
                 "icon_emoji": ":fc:",
-                "text": msg
+                "text": msg,
+                "channel": "#projects"
             }))
     supervisor_restart("hooks")
