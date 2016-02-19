@@ -12,6 +12,7 @@ services = [
     "slackinv",
     "hubot",
     "website",
+    "codegolf",
 ]
 
 with open("template.html") as f:
