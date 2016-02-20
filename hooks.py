@@ -45,7 +45,7 @@ def slack_post(service, git_pull_result, supervisor_result):
                 "username": "hookbot",
                 "icon_emoji": ":fc:",
                 "text": format(),
-                "channel": "#projects",
+                "channel": "#codegolf" if service == "codegolf" else "#projects",
             }))
 
 
