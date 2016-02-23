@@ -13,6 +13,7 @@ services = [
     "hubot",
     "website",
     "codegolf",
+    "payments",
 ]
 
 with open("template.html") as f:
