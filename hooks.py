@@ -26,10 +26,12 @@ __all__ = [
 
 def slack_post(service, git_pull_result, supervisor_result):
     def format():
-        if git_pull_result[-1] == 0:
+        if git_pull_result[1] == 0:
             gitmsg = "Git pull successful"
             if "Already up-to-date" in git_pull_result[0]:
                 gitmsg += ". No new commits"
+            elif len(git_pull_result) == 3:
+                gitmsg += ". Last commit: " + git_pull_result[2]
         else:
             gitmsg = "Git pull had non-zero exit status"
         if len(supervisor_result) == 3:
@@ -82,7 +84,7 @@ def git_pull_in_dir(service):
         code = e.returncode
     out += "\n"
     os.chdir(previous_cwd)
-    return out, code
+    return out, code, sp.check_output(["git", "log", "-n1", "--oneline"])
 
 def wrap(service):
     def fn():
