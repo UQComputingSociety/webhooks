@@ -14,6 +14,7 @@ services = [
     "website",
     "codegolf",
     "payments",
+    "slackwolf",
 ]
 
 with open("template.html") as f:
@@ -83,8 +84,13 @@ def git_pull_in_dir(service):
         out += "\nErrored out with code " + str(e.returncode) + "."
         code = e.returncode
     out += "\n"
+    if code == 0:
+        try:
+            logmsg = sp.check_output(["git", "log", "-n1", "--oneline"])
+        except sp.CalledProcessError as e:
+            logmsg = "Error checking logs"
     os.chdir(previous_cwd)
-    return out, code, sp.check_output(["git", "log", "-n1", "--oneline"])
+    return out, code, logmsg
 
 def wrap(service):
     def fn():
