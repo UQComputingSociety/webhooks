@@ -21,7 +21,7 @@ with open("template.html") as f:
     template = f.read()
 
 __all__ = [
-    "app",
+    "main",
 ]
 
 
@@ -92,8 +92,9 @@ def git_pull_in_dir(service):
     os.chdir(previous_cwd)
     return out, code, logmsg
 
-def wrap(service):
-    def fn():
+
+def wrap(service, queue):
+    def worker_fn():
         git = git_pull_in_dir(service)
         sup = supervisor_restart(service)
         msg = template.format(
@@ -102,27 +103,65 @@ def wrap(service):
             )
         slack_post(service, git, sup)
         return msg
-    fn.__name__ = service + "_update"
-    return fn
 
-for service in services:
-    app.route('/'+service, methods=["GET", "POST"])(wrap(service))
+    def resp():
+        queue.put(worker_fn)
+        return "Hook started"
+    resp.__name__ = service + "_update"
+    return resp
 
 
-@app.route("/hooks", methods=["GET", "POST"])
-def hookbot_hook():
-    git = git_pull_in_dir("hooks")
+def add_hookbot(app, queue):
+    def worker_fn():
+        print("doing stuff")
+        return
+        git = git_pull_in_dir("hooks")
 
-    msg = "Someone triggered my reset switch! "
-    msg += "There was a git pull with status code {}.".format(git[1])
-    msg += " Can someone please restart me now? https://cesi.uqcs.org.au. @trm @lsenjov @wisebaldone"
+        msg = "Someone triggered my reset switch! "
+        msg += "There was a git pull with status code {}.".format(git[1])
+        msg += " Can someone please restart me now? https://cesi.uqcs.org.au."
+        msg += " @trm @lsenjov @wisebaldone"
 
-    slack_hooks = os.environ.get("SLACK_HOOK_URL")
-    if slack_hooks:
-        requests.post(slack_hooks, json.dumps({
-                "username": "hookbot",
-                "icon_emoji": ":fc:",
-                "text": msg,
-                "channel": "#projects",
-            }))
-    supervisor_restart("hooks")
+        slack_hooks = os.environ.get("SLACK_HOOK_URL")
+        if slack_hooks:
+            requests.post(slack_hooks, json.dumps({
+                    "username": "hookbot",
+                    "icon_emoji": ":fc:",
+                    "text": msg,
+                    "channel": "#projects",
+                }))
+        supervisor_restart("hooks")
+
+    @app.route("/hooks", methods=["GET", "POST"])
+    def hooks_update():
+        queue.put(worker_fn)
+        return "Hook started"
+
+
+def task_queue(queue):
+    print("Starting task queue")
+    for item in iter(queue.get, None):
+        print(item.__name__)
+        item()
+    print("Task queue finished")
+
+
+def main(port, host):
+    import threading
+    from queue import Queue
+    queue = Queue()
+    queuthread = threading.Thread(target=task_queue, args=(queue,))
+    queuthread.start()
+
+    for service in services:
+        app.route('/'+service, methods=["GET", "POST"])(wrap(service, queue))
+    add_hookbot(app, queue)
+
+    try:
+        app.run(port=port, host=host, debug=True)
+    except Exception as e:
+        print(e)
+    print("Here")
+    queue.put(None)
+    queuthread.join()
+    print("Still doing shit")
