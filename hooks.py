@@ -104,6 +104,8 @@ def wrap(service, queue):
         slack_post(service, git, sup)
         return msg
 
+    worker_fn.__name__ = service + "_worker"
+
     def resp():
         queue.put(worker_fn)
         return "Hook started"
@@ -113,8 +115,6 @@ def wrap(service, queue):
 
 def add_hookbot(app, queue):
     def worker_fn():
-        print("doing stuff")
-        return
         git = git_pull_in_dir("hooks")
 
         msg = "Someone triggered my reset switch! "
@@ -131,6 +131,8 @@ def add_hookbot(app, queue):
                     "channel": "#projects",
                 }))
         supervisor_restart("hooks")
+
+    worker_fn.__name__ = "hooks_worker"
 
     @app.route("/hooks", methods=["GET", "POST"])
     def hooks_update():
@@ -157,11 +159,7 @@ def main(port, host):
         app.route('/'+service, methods=["GET", "POST"])(wrap(service, queue))
     add_hookbot(app, queue)
 
-    try:
-        app.run(port=port, host=host, debug=True)
-    except Exception as e:
-        print(e)
-    print("Here")
+    app.run(port=port, host=host)
+    
     queue.put(None)
     queuthread.join()
-    print("Still doing shit")
