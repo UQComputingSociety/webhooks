@@ -15,6 +15,7 @@ services = [
     "codegolf",
     "payments",
     "slackwolf",
+    "shirts"
 ]
 
 with open("template.html") as f:
@@ -119,8 +120,8 @@ def add_hookbot(app, queue):
 
         msg = "Someone triggered my reset switch! "
         msg += "There was a git pull with status code {}.".format(git[1])
-        msg += " Can someone please restart me now? https://cesi.uqcs.org.au."
-        msg += " @trm @lsenjov @wisebaldone"
+        msg += " Can someone please restart me now? http://cesi.uqcs.org.au."
+        msg += " (@trm)"
 
         slack_hooks = os.environ.get("SLACK_HOOK_URL")
         if slack_hooks:
