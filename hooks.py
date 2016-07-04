@@ -148,16 +148,19 @@ def task_queue(queue):
     print("Task queue finished")
 
 
+import threading
+from queue import Queue
+queue = Queue()
+queuthread = threading.Thread(target=task_queue, args=(queue,))
+
+for service in services:
+    app.route('/'+service, methods=["GET", "POST"])(wrap(service, queue))
+add_hookbot(app, queue)
+
+
 def main(port, host):
-    import threading
-    from queue import Queue
-    queue = Queue()
-    queuthread = threading.Thread(target=task_queue, args=(queue,))
     queuthread.start()
 
-    for service in services:
-        app.route('/'+service, methods=["GET", "POST"])(wrap(service, queue))
-    add_hookbot(app, queue)
 
     app.run(port=port, host=host)
     
