@@ -85,6 +85,7 @@ def git_pull_in_dir(service):
         out += "\nErrored out with code " + str(e.returncode) + "."
         code = e.returncode
     out += "\n"
+    logmsg = "Error checking logs"
     if code == 0:
         try:
             logmsg = sp.check_output(["git", "log", "-n1", "--oneline"]).decode('utf-8')
