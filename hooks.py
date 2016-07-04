@@ -87,7 +87,7 @@ def git_pull_in_dir(service):
     out += "\n"
     if code == 0:
         try:
-            logmsg = sp.check_output(["git", "log", "-n1", "--oneline"])
+            logmsg = sp.check_output(["git", "log", "-n1", "--oneline"]).decode('utf-8')
         except sp.CalledProcessError as e:
             logmsg = "Error checking logs"
     os.chdir(previous_cwd)
