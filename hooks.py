@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 import os
 import subprocess as sp
 import xmlrpc.client
@@ -10,7 +10,6 @@ app = Flask(__name__)
 services = [
     "cesi",
     "slackinv",
-    "hubot",
     "website",
     "codegolf",
     "payments",
@@ -26,32 +25,44 @@ __all__ = [
 ]
 
 
-def slack_post(service, git_pull_result, supervisor_result):
-    def format():
-        if git_pull_result[1] == 0:
-            gitmsg = "Git pull successful"
-            if "Already up-to-date" in git_pull_result[0]:
-                gitmsg += ". No new commits"
-            elif len(git_pull_result) == 3:
-                gitmsg += ". Last commit: " + git_pull_result[2]
-        else:
-            gitmsg = "Git pull had non-zero exit status"
-        if len(supervisor_result) == 3:
-            supmsg = "Service status: " + supervisor_result[-1]["statename"]
-        elif len(supervisor_result) == 2:
-            supmsg = "Error starting process"
-        else:
-            supmsg = "Error stopping process"
+def slack_msg(message, channel="#projects", icon=":fc:", username="hookbot"):
+    requests.post(os.environ.get("SLACK_HOOK_URL"), json.dumps({
+            "username": username,
+            "icon_emoji": icon,
+            "text": message,
+            "channel": channel,
+        }))
 
-        return "Hook for {} triggered. {}. {}.".format(service, gitmsg, supmsg)
-    slack_hooks = os.environ.get("SLACK_HOOK_URL")
-    if slack_hooks:
-        requests.post(slack_hooks, json.dumps({
-                "username": "hookbot",
-                "icon_emoji": ":fc:",
-                "text": format(),
-                "channel": "#codegolf" if service == "codegolf" else "#projects",
-            }))
+
+def gitmsg_format(git_result):
+    if git_result[1] == 0:
+        gitmsg = "Git pull successful"
+        if "Already up-to-date" in git_result[0]:
+            gitmsg += ". No new commits"
+        elif len(git_result) == 3:
+            gitmsg += ". Last commit: " + git_result[2]
+    else:
+        gitmsg = "Git pull had non-zero exit status"
+    return gitmsg
+
+
+def supervisormsg_format(sup_result):
+    if len(sup_result) == 3:
+        supmsg = "Service status: " + sup_result[-1]["statename"]
+    elif len(sup_result) == 2:
+        supmsg = "Error starting process"
+    else:
+        supmsg = "Error stopping process"
+    return supmsg
+
+
+def slack_post(service, git_pull_result, supervisor_result):
+    gitmsg = gitmsg_format(git_pull_result)
+    supmsg = supervisormsg_format(supervisor_result)
+    slack_msg(
+        "Hook for {} triggered. {}. {}.".format(service, gitmsg, supmsg),
+        channel="#codegolf" if service == "codegolf" else "#projects",
+    )
 
 
 def supervisor_restart(service):
@@ -142,6 +153,46 @@ def add_hookbot(app, queue):
         return "Hook started"
 
 
+def add_hubot(app, queue):
+    good_build_types = [
+        "no_tests",
+        "fixed",
+        "success",
+    ]
+
+    def worker_factory(payload):
+        def worker_fn():
+            buildmsg = "Hook for hubot triggered"
+            status = payload['payload']['status']
+            if status not in good_build_types:
+                buildmsg += ". Hubot build failed with status " + status + "."
+                return slack_msg(buildmsg)
+            else:
+                buildmsg += ". Passed with status " + status + ". "
+            git = git_pull_in_dir("hubot")
+            buildmsg += gitmsg_format(git) + "."
+            build_num = payload['payload']['build_num']
+            artifact_data = requests.get(
+                "https://circleci.com/api/v1.1/project/github/" +
+                "UQComputingSociety/uqcs-hubot/" +
+                str(build_num) +
+                "/artifacts"
+            ).json()
+            for item in artifact_data:
+                file_url = item['url']
+                file_path = os.path.join(
+                    "/srv/hubot",
+                    item['pretty_path'].lstrip("$CIRCLE_ARTIFACTS"),
+                )
+                with open(file_path, "wb") as f:
+                    f.write(requests.get(file_url).content)
+
+    @app.route("/hubot-ci", methods=["GET", "POST"])
+    def hubot_update():
+        queue.put(worker_factory(json.loads(request.data)))
+        return "Hook started"
+
+
 def task_queue(queue):
     print("Starting task queue")
     for item in iter(queue.get, None):
@@ -163,8 +214,7 @@ add_hookbot(app, queue)
 def main(port, host):
     queuthread.start()
 
-
     app.run(port=port, host=host)
-    
+
     queue.put(None)
     queuthread.join()
