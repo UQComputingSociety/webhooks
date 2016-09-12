@@ -164,11 +164,19 @@ def add_hubot(app, queue):
         def worker_fn():
             buildmsg = "Hook for hubot triggered"
             status = payload['payload']['status']
+            print(status)
             if status not in good_build_types:
                 buildmsg += ". Hubot build failed with status " + status + "."
                 return slack_msg(buildmsg)
             else:
                 buildmsg += ". Passed with status " + status + ". "
+
+            # clean git dir
+            previous_cwd = os.getcwd()
+            os.chdir("/srv/" + service)
+            os.system('git clean -fd')
+            os.chdir(previous_cwd)
+
             git = git_pull_in_dir("hubot")
             buildmsg += gitmsg_format(git) + "."
             build_num = payload['payload']['build_num']
@@ -182,14 +190,23 @@ def add_hubot(app, queue):
                 file_url = item['url']
                 file_path = os.path.join(
                     "/srv/hubot",
-                    item['pretty_path'].lstrip("$CIRCLE_ARTIFACTS"),
+                    item['pretty_path'].lstrip("$CIRCLE_ARTIFACTS/"),
                 )
-                with open(file_path, "wb") as f:
+                print(file_path)
+                try:
+                    os.makedirs(os.path.dirname(file_path))
+                except FileExistsError:
+                    pass
+                with open(file_path, "wb+") as f:
                     f.write(requests.get(file_url).content)
+            buildmsg += " " + str(len(artifact_data))
+            buildmsg += " compiled files were loaded."
+            return slack_msg(buildmsg)
+        return worker_fn
 
     @app.route("/hubot-ci", methods=["GET", "POST"])
     def hubot_update():
-        queue.put(worker_factory(json.loads(request.data)))
+        (worker_factory(json.loads(request.data.decode('utf-8'))))()
         return "Hook started"
 
 
@@ -210,6 +227,7 @@ for service in services:
     app.route('/'+service, methods=["GET", "POST"])(wrap(service, queue))
 add_hookbot(app, queue)
 add_hubot(app, queue)
+
 
 def main(port, host):
     queuthread.start()
