@@ -209,7 +209,7 @@ queuthread = threading.Thread(target=task_queue, args=(queue,))
 for service in services:
     app.route('/'+service, methods=["GET", "POST"])(wrap(service, queue))
 add_hookbot(app, queue)
-
+add_hubot(app, queue)
 
 def main(port, host):
     queuthread.start()
