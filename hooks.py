@@ -201,6 +201,10 @@ def add_hubot(app, queue):
                     f.write(requests.get(file_url).content)
             buildmsg += " " + str(len(artifact_data))
             buildmsg += " compiled files were loaded."
+
+            supervisor = supervisor_restart("hubot")
+            buildmsg += " " + supervisormsg_format(supervisor) + "."
+
             return slack_msg(buildmsg)
         return worker_fn
 
