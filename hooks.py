@@ -10,7 +10,6 @@ app = Flask(__name__)
 services = [
     "cesi",
     "slackinv",
-    "website",
     "codegolf",
     "slackwolf",
 ]
