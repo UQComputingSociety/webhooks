@@ -149,68 +149,6 @@ def add_hookbot(app, queue):
         queue.put(worker_fn)
         return "Hook started"
 
-
-def add_hubot(app, queue):
-    good_build_types = [
-        "no_tests",
-        "fixed",
-        "success",
-    ]
-
-    def worker_factory(payload):
-        def worker_fn():
-            buildmsg = "Hook for hubot triggered"
-            status = payload['payload']['status']
-            print(status)
-            if status not in good_build_types:
-                buildmsg += ". Hubot build failed with status " + status + "."
-                return slack_msg(buildmsg)
-            else:
-                buildmsg += ". Passed with status " + status + ". "
-
-            # clean git dir
-            previous_cwd = os.getcwd()
-            os.chdir("/srv/" + service)
-            os.system('git clean -fd')
-            os.chdir(previous_cwd)
-
-            git = git_pull_in_dir("hubot")
-            buildmsg += gitmsg_format(git) + "."
-            build_num = payload['payload']['build_num']
-            artifact_data = requests.get(
-                "https://circleci.com/api/v1.1/project/github/" +
-                "UQComputingSociety/uqcs-hubot/" +
-                str(build_num) +
-                "/artifacts"
-            ).json()
-            for item in artifact_data:
-                file_url = item['url']
-                file_path = os.path.join(
-                    "/srv/hubot",
-                    item['pretty_path'].lstrip("$CIRCLE_ARTIFACTS/"),
-                )
-                print(file_path)
-                try:
-                    os.makedirs(os.path.dirname(file_path))
-                except FileExistsError:
-                    pass
-                with open(file_path, "wb+") as f:
-                    f.write(requests.get(file_url).content)
-            buildmsg += " " + str(len(artifact_data))
-            buildmsg += " compiled files were loaded."
-
-            supervisor = supervisor_restart("hubot")
-            buildmsg += " " + supervisormsg_format(supervisor) + "."
-
-            return slack_msg(buildmsg)
-        return worker_fn
-
-    @app.route("/hubot-ci", methods=["GET", "POST"])
-    def hubot_update():
-        (worker_factory(json.loads(request.data.decode('utf-8'))))()
-        return "Hook started"
-
-
 def task_queue(queue):
     print("Starting task queue")
     for item in iter(queue.get, None):
