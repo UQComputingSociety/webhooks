@@ -9,9 +9,7 @@ app = Flask(__name__)
 
 services = [
     "cesi",
-    "slackinv",
     "codegolf",
-    "slackwolf",
 ]
 
 with open("template.html") as f:
