@@ -128,7 +128,7 @@ def add_hookbot(app, queue):
         msg = "Someone triggered my reset switch! "
         msg += "There was a git pull with status code {}.".format(git[1])
         msg += " Can someone please restart me now? http://cesi.uqcs.org.au."
-        msg += " (@trm)"
+        msg += " (<@U0D0J0HM0>)" # (@trm)
 
         slack_hooks = os.environ.get("SLACK_HOOK_URL")
         if slack_hooks:
